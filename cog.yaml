@@ -16,7 +16,7 @@ build:
   python_packages:
      - "torch==1.8.0"
      - "torchvision==0.9.0"
-     - "piano_transcription_inference==0.0.5"
+     - "piano-transcription-inference @ git+https://github.com/xavriley/piano_transcription_inference.git@758dceb6de494f33ecd364b43a89c47ec7c0d13b"
      - "librosa==0.6.0"
      - "h5py==2.10.0"
      - "pandas==1.1.2"
