@@ -5,33 +5,31 @@ build:
   gpu: true
 
   system_packages:
-    - "libgl1-mesa-glx"
-    - "libglib2.0-0"
-    - "libsndfile1-dev"
     - "ffmpeg"
-    - "timidity"
+    - "libsndfile1-dev"
 
   python_version: "3.8"
 
   python_packages:
      - "torch==1.8.0"
      - "torchvision==0.9.0"
-     - "piano-transcription-inference @ git+https://github.com/xavriley/piano_transcription_inference.git@758dceb6de494f33ecd364b43a89c47ec7c0d13b"
-     - "librosa==0.6.0"
+     - "librosa==0.6.3"
+     - "mido==1.2.9"
+     - "matplotlib==3.0.3"
+     - "torchlibrosa==0.0.9"
+     - "piano-transcription-inference @ git+https://github.com/xavriley/piano_transcription_inference.git@37c1addb73ef054168a855f4061bf4f5583b335a"
      - "h5py==2.10.0"
      - "pandas==1.1.2"
-     - "librosa==0.6.0"
      - "numba==0.48"
-     - "mido==1.2.9"
      - "mir_eval==0.5"
-     - "matplotlib==3.0.3"
-     - "torchlibrosa==0.0.4"
      - "sox==1.4.0"
      - "tqdm==4.62.3"
      - "pretty_midi==0.2.9"
-     - "synthviz==0.0.2"
+     - "resampy==0.2.2"
+     - "numpy==1.20.0"
   
   run:
-     - "ffmpeg -version"
+     - "pip install --upgrade --no-deps --force-reinstall matplotlib==3.0.3"
 
 predict: "predict.py:Predictor"
+image: "r8.im/xavriley/piano-to-midi"
