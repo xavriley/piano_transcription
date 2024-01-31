@@ -3,6 +3,10 @@
 !*.*
 *.hdf5
 *.pyc
+*.mid
+*.json
+*.pth
+*.mp3
 __pycache__
 
 env/

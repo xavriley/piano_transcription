@@ -7,10 +7,13 @@ build:
   system_packages:
     - "ffmpeg"
     - "libsndfile1-dev"
+    - "portaudio19-dev"
+    - "python3-pyaudio"
 
   python_version: "3.8"
 
   python_packages:
+     - "cython"
      - "torch==1.8.0"
      - "torchvision==0.9.0"
      - "librosa==0.6.3"
@@ -27,9 +30,12 @@ build:
      - "pretty_midi==0.2.9"
      - "resampy==0.2.2"
      - "numpy==1.20.0"
+     - "madmom @ git+https://github.com/CPJKU/madmom#egg=madmom"
+     - "BeatNet"
   
   run:
      - "pip install --upgrade --no-deps --force-reinstall matplotlib==3.0.3"
+     - "pip install --global-option='build_ext' --global-option='-I/usr/local/include' --global-option='-L/usr/local/lib' pyaudio"
 
 predict: "predict.py:Predictor"
 image: "r8.im/xavriley/piano-to-midi"
