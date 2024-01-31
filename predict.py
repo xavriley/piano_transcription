@@ -44,6 +44,9 @@ class Predictor(BasePredictor):
 
         downbeats = [t for idx, (t, b) in enumerate(beats[first_downbeat_idx:]) if (idx % beats_per_bar) == 0]
         
+        if downbeats[0] > 0:
+            downbeats = [0] + downbeats
+        
         time_sig = beats_per_bar
         syncpoints_object = str([[i,d] for i, d in enumerate(downbeats)])
 
@@ -51,9 +54,6 @@ class Predictor(BasePredictor):
         with open(syncpoints_json_path, 'w') as text_file:
             text_file.write(syncpoints_object)
 
-        if downbeats[0] > 0:
-            downbeats = [0] + downbeats
-        
         tempos = []
         for db1, db2 in zip(downbeats[:-1], downbeats[1:]):
             t = round(60.0 / ((db2 - db1) / beats_per_bar), 3)
@@ -125,9 +125,9 @@ class Predictor(BasePredictor):
 
         self.transcriptor = PianoTranscription("Regress_onset_offset_frame_velocity_CRNN",
                                                 device=device,
-                                               checkpoint_path=str(model_path),
-                                               segment_samples=10 * sample_rate,
-                                               batch_size=8)
+                                                checkpoint_path=str(model_path),
+                                                segment_samples=10 * sample_rate,
+                                                batch_size=8)
 
         midi_intermediate_filename = f"{audio_input.stem}.mid"
         
@@ -147,7 +147,6 @@ class Predictor(BasePredictor):
 
         midi_with_downbeats_path, syncpoints_path = self.add_downbeats_to_midi(midi_intermediate_filename, beats, beats_per_bar)
 
-        # to return a list see https://github.com/replicate/cog/blob/main/docs/python.md#returning-a-list
         return Output(midi=midi_with_downbeats_path,
                       syncpoints=syncpoints_path)
 
