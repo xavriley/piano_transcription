@@ -14,14 +14,18 @@ from BeatNet.BeatNet import BeatNet
 
 import os
 import requests
+from time import sleep
 
 # model repo: https://github.com/bytedance/piano_transcription
 # package repo: https://github.com/qiuqiangkong/piano_transcription_inference
 from piano_transcription_inference import PianoTranscription, sample_rate
+import torch
+
 
 class Output(BaseModel):
     midi: Path
     syncpoints: Path
+
 
 class Predictor(BasePredictor):
     transcriptor: PianoTranscription
@@ -37,18 +41,21 @@ class Predictor(BasePredictor):
         print(f"Tempo calculated as {tempo} bpm")
 
         first_downbeat_idx = 0
-        for t,b in beats:
+        for t, b in beats:
             if b == 1.0:
                 first_downbeat_idx = int(b)
                 break
 
-        downbeats = [t for idx, (t, b) in enumerate(beats[first_downbeat_idx:]) if (idx % beats_per_bar) == 0]
-        
+        downbeats = [
+            t for idx, (t, b) in enumerate(beats[first_downbeat_idx:])
+            if (idx % beats_per_bar) == 0
+        ]
+
         if downbeats[0] > 0:
             downbeats = [0] + downbeats
-        
+
         time_sig = beats_per_bar
-        syncpoints_object = str([[i,d] for i, d in enumerate(downbeats)])
+        syncpoints_object = str([[i, d] for i, d in enumerate(downbeats)])
 
         syncpoints_json_path = Path(midi_path).with_suffix(".json")
         with open(syncpoints_json_path, 'w') as text_file:
@@ -71,16 +78,17 @@ class Predictor(BasePredictor):
         out_mid = pm.PrettyMIDI(resolution=960, initial_tempo=60.0)
         for i in range(len(mid.instruments)):
             out_mid.instruments.append(pm.Instrument(program=0))
-        out_mid.time_signature_changes.append(pm.TimeSignature(
-            beats_per_bar, 4, 0))
+        out_mid.time_signature_changes.append(
+            pm.TimeSignature(beats_per_bar, 4, 0))
 
         # clear out the existing downbeats
         out_mid._tick_scales = []
 
         # copy the downbeats from the Filosax midi
         for time, tempo in tempo_changes:
-            out_mid._tick_scales.append((int(out_mid.time_to_tick(time)),
-                                        60.0 / int(tempo * out_mid.resolution)))
+            out_mid._tick_scales.append(
+                (int(out_mid.time_to_tick(time)),
+                 60.0 / int(tempo * out_mid.resolution)))
             out_mid._update_tick_to_time(out_mid.get_end_time())
 
         # with downbeats copied over, we can now add the notes
@@ -94,26 +102,35 @@ class Predictor(BasePredictor):
 
         return Path(outpath), Path(syncpoints_json_path)
 
-
     def predict(
         self,
         audio_input: Path = Input(description="Piano audio to transcribe"),
         model_path: str = Input(
             description="Optional URL to specify different model weights",
             default="./model.pth"),
-        beats_per_bar: int = Input(
-            description="Optional beats per bar",
-            default=4
-        ),
-        device: str = Input(description="Device to run inference on", default="cuda")
+        beats_per_bar: int = Input(description="Optional beats per bar",
+                                   default=4),
+        file_label: str = Input(
+            description="Optional label to include in output filename",
+            default=""),
+        device: str = Input(description="Device to run inference on",
+                            default="cuda")
     ) -> Any:
+
+        print("Running prediction")
+        print(f"torch available? {torch.cuda.is_available()}")
 
         model_path = self.download_file_if_url(model_path)
 
         print(Path(model_path).resolve())
 
         # predict beats
-        estimator = BeatNet(1, mode='offline', inference_model='DBN', plot=[], thread=False, device='cuda')
+        estimator = BeatNet(1,
+                            mode='offline',
+                            inference_model='DBN',
+                            plot=[],
+                            thread=False,
+                            device='cuda')
         beats = estimator.process(str(audio_input))
         # beats is [[time, beat_idx], ...]
         estimator = None
@@ -123,30 +140,34 @@ class Predictor(BasePredictor):
             print("Using ./model.pth instead")
             model_path = Path("./model.pth")
 
-        self.transcriptor = PianoTranscription("Regress_onset_offset_frame_velocity_CRNN",
-                                                device=device,
-                                                checkpoint_path=str(model_path),
-                                                segment_samples=10 * sample_rate,
-                                                batch_size=8)
+        self.transcriptor = PianoTranscription(
+            "Regress_onset_offset_frame_velocity_CRNN",
+            device=device,
+            checkpoint_path=str(model_path),
+            segment_samples=10 * sample_rate,
+            batch_size=8)
 
-        midi_intermediate_filename = f"{audio_input.stem}.mid"
-        
+        midi_intermediate_filename = f"{audio_input.stem}{file_label}.mid"
+
         load_audio_start = os.times()[4]
         audio, _ = librosa.core.load(str(audio_input), sr=sample_rate)
         load_audio_end = os.times()[4]
 
         print(f"Loaded audio in {load_audio_end - load_audio_start} seconds")
 
-
         # Transcribe audio
         transcribe_start_time = os.times()[4]
         self.transcriptor.transcribe(audio, midi_intermediate_filename)
         transcribe_end_time = os.times()[4]
 
-        print(f"Transcribed audio in {transcribe_end_time - transcribe_start_time} seconds")
+        print(
+            f"Transcribed audio in {transcribe_end_time - transcribe_start_time} seconds"
+        )
 
-        midi_with_downbeats_path, syncpoints_path = self.add_downbeats_to_midi(midi_intermediate_filename, beats, beats_per_bar)
+        midi_with_downbeats_path, syncpoints_path = self.add_downbeats_to_midi(
+            midi_intermediate_filename, beats, beats_per_bar)
 
+        sleep(10)
         return Output(midi=midi_with_downbeats_path,
                       syncpoints=syncpoints_path)
 
@@ -167,10 +188,12 @@ class Predictor(BasePredictor):
         filename = os.path.basename(url_str)
         if not filename:
             filename = "downloaded_file"
-            
+
         if os.path.exists(os.path.join(save_dir, filename)):
             print(f"using cached {filename} from {url_str}")
-            print(f"size of file is {os.path.getsize(os.path.join(save_dir, filename))} bytes")
+            print(
+                f"size of file is {os.path.getsize(os.path.join(save_dir, filename))} bytes"
+            )
             return f"./{filename}"
 
         response = requests.get(url_str, stream=True)
@@ -182,6 +205,8 @@ class Predictor(BasePredictor):
                 file.write(chunk)
 
         print(f"Downloaded {filename} from {url_str}")
-        print(f"size of file is {os.path.getsize(os.path.join(save_dir, filename))} bytes")
+        print(
+            f"size of file is {os.path.getsize(os.path.join(save_dir, filename))} bytes"
+        )
 
         return f"./{filename}"
